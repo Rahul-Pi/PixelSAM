@@ -34,12 +34,17 @@ class ControlFrame(ttk.Frame):
         self.help_btn = tk.Button(self.side_tab, text="Help", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white", command = self.help_btn_browser)
         self.help_btn.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,50])
         
+        # Reset button
+        self.reset_btn = tk.Button(self.side_tab, text="Reset image", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white", command = self.reset_annotation)
+        self.reset_btn.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
+        
         # The logos
         # The logo is created using the icons from https://www.flaticon.com/free-icons/schedule and https://www.flaticon.com/free-icons/professions-and-jobs
         PixelSAM_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","PixelMe.png")).resize((100,82), Image.Resampling.LANCZOS))
         PixelSAM_logo_label = ttk.Label(self.side_tab, image=PixelSAM_logo)
         PixelSAM_logo_label.image = PixelSAM_logo
         PixelSAM_logo_label.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[0,20])
+
         
         self.side_tab.pack(side=tk.LEFT, anchor="s")        
 
@@ -60,6 +65,7 @@ class ControlFrame(ttk.Frame):
         app.bind("<Right>", self.right_arrow_press)
         app.bind("<Left>", self.left_arrow_press)
         self.imagelabel.bind('<1>', self.left_key_press)
+        self.imagelabel.bind('<3>', self.right_key_press)
 
         self.grid(column=0, row=0, padx=5, pady=5, sticky='ew')
     
@@ -93,13 +99,16 @@ class ControlFrame(ttk.Frame):
             self.OCV_image = cv2.imread(self.cur_image_path)
             cv2image= cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
 
+            # Get the image dimensions
+            self.img_height, self.img_width, _ = self.OCV_image.shape
+
             # Draw the annotations
             if len(self.cur_annotation) > 0:
                 for i in range(len(self.cur_annotation)):
-                    cv2image = cv2.circle(cv2image, (self.cur_annotation[i][0], self.cur_annotation[i][1]), 50, (0, 0, 255), -1)
+                    cv2image = cv2.circle(cv2image, (self.cur_annotation[i][0], self.cur_annotation[i][1]), int((self.img_height+self.img_width)/200), self.cur_annotation[i][2], -1)
             
             img = Image.fromarray(cv2image)
-            self.img_width, self.img_height = img.size
+
             # Resize the image to fit the window
             if int(self.img_width*self.window_height/self.img_height) > self.window_height:
                 self.resized_image = img.resize((self.window_height, int(self.img_height*self.window_height/self.img_width)), Image.Resampling.LANCZOS)
@@ -148,16 +157,32 @@ class ControlFrame(ttk.Frame):
         if self.resize_type == "height":
             # Ensure that the click is within the image and not in the border
             if event.y > (self.window_height - self.resized_image.size[1])/2 or event.y < self.window_height-(self.window_height - self.resized_image.size[1])/2:
-                self.cur_annotation.append([int(event.x*self.img_width/self.window_height), int((event.y-self.diff_dim)*self.img_height/self.resized_image.size[1])])
+                self.cur_annotation.append([int(event.x*self.img_width/self.window_height), int((event.y-self.diff_dim)*self.img_height/self.resized_image.size[1]),(0, 255, 0)])
         else:
             # Ensure that the click is within the image and not in the border
             if event.x > (self.window_height - self.resized_image.size[0])/2 or event.x < self.window_height-(self.window_height - self.resized_image.size[0])/2:
-                self.cur_annotation.append([int((event.x-self.diff_dim)*self.img_width/self.resized_image.size[0]), int(event.y*self.img_height/self.window_height)])
+                self.cur_annotation.append([int((event.x-self.diff_dim)*self.img_width/self.resized_image.size[0]), int(event.y*self.img_height/self.window_height),(0, 255, 0)])
+    
+    # When the left mouse button is pressed: 
+    def right_key_press(self, event):
+        # Append the button press location to the annotation list
+        if self.resize_type == "height":
+            # Ensure that the click is within the image and not in the border
+            if event.y > (self.window_height - self.resized_image.size[1])/2 or event.y < self.window_height-(self.window_height - self.resized_image.size[1])/2:
+                self.cur_annotation.append([int(event.x*self.img_width/self.window_height), int((event.y-self.diff_dim)*self.img_height/self.resized_image.size[1]),(255, 0, 0)])
+        else:
+            # Ensure that the click is within the image and not in the border
+            if event.x > (self.window_height - self.resized_image.size[0])/2 or event.x < self.window_height-(self.window_height - self.resized_image.size[0])/2:
+                self.cur_annotation.append([int((event.x-self.diff_dim)*self.img_width/self.resized_image.size[0]), int(event.y*self.img_height/self.window_height),(255, 0, 0)])
 
     # When the help button is pressed
     def help_btn_browser(self):
         # webbrowser.open(r"https://www.google.com",autoraise=True)
         pass
+
+    # When the reset button is pressed
+    def reset_annotation(self):
+        self.cur_annotation = []
 
 # App class
 class App(tk.Tk):
