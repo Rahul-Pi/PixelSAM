@@ -116,10 +116,11 @@ class ControlFrame(ttk.Frame):
         # Try to display the image
         try:
             if self.cur_image_path != self.prev_image_path or len(self.cur_annotation) != self.annotation_count or self.window_height != self.prev_window_height:
+                # Read the image and convert it to RGB
+                self.OCV_image = cv2.imread(self.cur_image_path)
+                self.cv2image = cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
+                # Only when a new image is selected, the predictor image is set
                 if self.cur_image_path != self.prev_image_path:
-                    # Read the image and convert it to RGB
-                    self.OCV_image = cv2.imread(self.cur_image_path)
-                    self.cv2image = cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
                     self.predictor.set_image(self.cv2image)
                 
                 # Update the previous image path, the annotation count and the window height
