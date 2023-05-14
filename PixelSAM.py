@@ -6,6 +6,8 @@ from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import filedialog,messagebox,ttk
 from segment_anything import sam_model_registry, SamPredictor
+from utils.general import select_device
+from utils.predict import SAM_setup, SAM_prediction
 import torch
 import time
 import threading
@@ -65,18 +67,10 @@ class ControlFrame(ttk.Frame):
         self.prev_image_path = ""
 
         # Load the model for segmentation
-        if args.model == "sam_vit_h_4b8939.pth":
-            sam_checkpoint = os.path.join(".","sam_vit_h_4b8939.pth")
+        if args.model_path == "sam_vit_h_4b8939.pth":
+            self.predictor = SAM_setup(args.model_type, os.path.join(".","sam_vit_h_4b8939.pth"), select_device(""))
         else:
-            sam_checkpoint = args.model
-        model_type = "vit_h"
-        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-        device_id = self.select_device("")
-        if device_id != "cpu":
-            sam.to(device=device_id)
-        else:
-            print("Warning: Running on CPU. This will be slow.")
-        self.predictor = SamPredictor(sam)
+            self.predictor = SAM_setup(args.model_type, args.model_path, select_device(""))
         
         # The function responsible for updating the frame
         self.frame_update()
@@ -136,7 +130,7 @@ class ControlFrame(ttk.Frame):
 
             # Draw the annotations
             if len(self.cur_annotation) > 0:
-                self.cv2image = self.SAM_prediction(self.cv2image, self.cur_annotation)
+                self.cv2image = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width)
                 for i in range(len(self.cur_annotation)):
                     self.cv2image = cv2.circle(self.cv2image, (self.cur_annotation[i][0], self.cur_annotation[i][1]), int((self.img_height+self.img_width)/200), self.cur_annotation[i][2], -1)
             
@@ -163,49 +157,7 @@ class ControlFrame(ttk.Frame):
             self.imagelabel.configure(image=imgtk)
         # Update the frame after the specified time interval
         self.imageplayer.after(self.image_update_val, self.frame_update)
-        # except:
-        #     self.imageplayer.after(self.image_update_val, self.frame_update)
 
-    def SAM_prediction(self, image, points):
-        # The points are in the format [x, y, color, label]
-        input_point = []
-        input_label = []
-        for i in range(len(points)):
-            input_point.append([points[i][0], points[i][1]])
-            input_label.append(points[i][3])
-        input_point = np.array(input_point)
-        input_label = np.array(input_label)
-
-        # Estimate the mask
-        masks, _, _ = self.predictor.predict(
-            point_coords=input_point,
-            point_labels=input_label,
-            multimask_output=False,
-        )
-        # Convert the mask to an image
-        h, w = masks.shape[-2:]
-        mask_color = np.array([1,1,1])
-        mask_image = masks.reshape(h, w, 1) * mask_color.reshape(1, 1, -1)
-        mask_image = (mask_image * 255).astype(np.uint8)
-
-        # Morphological operations to enhance detections
-        kernel = np.ones((5, 5), np.uint8)
-        eroded_img = cv2.erode(mask_image, kernel, iterations=2)
-        mask_image = cv2.dilate(eroded_img, kernel, iterations=2)
-        
-        # Get the edges of the mask
-        img_data = np.asarray(mask_image[:, :, 0])
-        gy, gx = np.gradient(img_data)
-        temp_edge = gy * gy + gx * gx
-        gy, gx = np.where(temp_edge != 0.0)
-
-        # Overlay the mask on the image        
-        image = cv2.addWeighted(mask_image, 0.3, image, 0.7, 0)
-
-        # Plot the gx and gy on the image
-        for i in range(len(gx)):
-            image = cv2.circle(image, (gx[i], gy[i]), int((self.img_height+self.img_width)/400), (0, 0, 255), -1)
-        return image
     
     # When the right arrow key is pressed: Display the next image
     def right_arrow_press(self, event):
@@ -258,27 +210,6 @@ class ControlFrame(ttk.Frame):
     def reset_annotation(self):
         self.cur_annotation = []
     
-    # Check if GPU is available
-    def select_device(device='', batch_size=None):
-        # device = 'cpu' or '0' or '0,1,2,3'
-        s = f'SAM 🚀 torch {torch.__version__} '  # string
-        cpu = device.lower() == 'cpu'
-        
-        cuda = not cpu and torch.cuda.is_available()
-        if cuda:
-            n = torch.cuda.device_count()
-            if n > 1 and batch_size:  # check that batch_size is compatible with device_count
-                assert batch_size % n == 0, f'batch-size {batch_size} not multiple of GPU count {n}'
-            space = ' ' * len(s)
-            for i, d in enumerate(device.split(',') if device else range(n)):
-                p = torch.cuda.get_device_properties(i)
-                s += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / 1024 ** 2}MB)\n"  # bytes to MB
-        else:
-            s += 'CPU\n'
-
-        # print(s.encode().decode('ascii', 'ignore') if 'ascii' in s else s)  # emoji-safe
-
-        return 'cuda' if cuda else 'cpu'
 
 # App class
 class App(tk.Tk):
@@ -307,7 +238,8 @@ class App(tk.Tk):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PixelSAM Labelling Tool supports image and video labelling for object classification\
                         Example: python PixelSAM.py') 
-    parser.add_argument('--model', type=str, default="sam_vit_h_4b8939.pth", help='The path to the model checkpoint')
+    parser.add_argument('--model_path', type=str, default="sam_vit_h_4b8939.pth", help='The path to the model checkpoint')
+    parser.add_argument('--model_type', type=str, default="vit_h", help='The path to the model checkpoint')
 
     args = parser.parse_args()
     app = App()
