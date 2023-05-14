@@ -184,9 +184,14 @@ class ControlFrame(ttk.Frame):
         )
         # Convert the mask to an image
         h, w = masks.shape[-2:]
-        mask_color = np.array([np.random.random(3)])
+        mask_color = np.array([1,1,1])
         mask_image = masks.reshape(h, w, 1) * mask_color.reshape(1, 1, -1)
         mask_image = (mask_image * 255).astype(np.uint8)
+
+        # Morphological operations to enhance detections
+        kernel = np.ones((5, 5), np.uint8)
+        eroded_img = cv2.erode(mask_image, kernel, iterations=2)
+        mask_image = cv2.dilate(eroded_img, kernel, iterations=2)
         
         # Get the edges of the mask
         img_data = np.asarray(mask_image[:, :, 0])
