@@ -51,12 +51,15 @@ class ControlFrame(ttk.Frame):
         # The variables corresponding to the image player
         self.file_path = "" # Delaring path of the folder with the images to be labelled
         self.cur_annotation = [] # List of all the annotations
+        self.annotation_count = None # The number of annotations
         self.image_update_val = 100 # The time interval between each frame update in ms
         self.cur_image_index = 0 # The index of the current image
         self.image_list = [] # The list of images to be displayed
+        self.window_height = 0 # The height of the app window
 
         # Path to the intro image
         self.cur_image_path = os.path.join(".","assets","intro.png")
+        self.prev_image_path = ""
         
         # The function responsible for updating the frame
         self.frame_update()
@@ -95,39 +98,45 @@ class ControlFrame(ttk.Frame):
         self.window_height = app.winfo_height()-20
         # Try to display the image
         try:
-            # Read the image and convert it to RGB
-            self.OCV_image = cv2.imread(self.cur_image_path)
-            cv2image= cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
+            if self.cur_image_path != self.prev_image_path or len(self.cur_annotation) != self.annotation_count or self.window_height != self.prev_window_height:
+                # Update the previous image path, the annotation count and the window height
+                self.prev_image_path = self.cur_image_path
+                self.annotation_count = len(self.cur_annotation)
+                self.prev_window_height = self.window_height
+                
+                # Read the image and convert it to RGB
+                self.OCV_image = cv2.imread(self.cur_image_path)
+                cv2image= cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
 
-            # Get the image dimensions
-            self.img_height, self.img_width, _ = self.OCV_image.shape
+                # Get the image dimensions
+                self.img_height, self.img_width, _ = self.OCV_image.shape
 
-            # Draw the annotations
-            if len(self.cur_annotation) > 0:
-                for i in range(len(self.cur_annotation)):
-                    cv2image = cv2.circle(cv2image, (self.cur_annotation[i][0], self.cur_annotation[i][1]), int((self.img_height+self.img_width)/200), self.cur_annotation[i][2], -1)
-            
-            img = Image.fromarray(cv2image)
+                # Draw the annotations
+                if len(self.cur_annotation) > 0:
+                    for i in range(len(self.cur_annotation)):
+                        cv2image = cv2.circle(cv2image, (self.cur_annotation[i][0], self.cur_annotation[i][1]), int((self.img_height+self.img_width)/200), self.cur_annotation[i][2], -1)
+                
+                img = Image.fromarray(cv2image)
 
-            # Resize the image to fit the window
-            if int(self.img_width*self.window_height/self.img_height) > self.window_height:
-                self.resized_image = img.resize((self.window_height, int(self.img_height*self.window_height/self.img_width)), Image.Resampling.LANCZOS)
-                self.resize_type = "height"
-                self.diff_dim = (self.window_height - self.resized_image.size[1])/2 # The difference between the image height and the window height
-            else:
-                self.resized_image = img.resize((int(self.img_width*self.window_height/self.img_height),self.window_height), Image.Resampling.LANCZOS)
-                self.resize_type = "width"
-                self.diff_dim = (self.window_height - self.resized_image.size[0])/2 # The difference between the image width and the window width
-            
-            # Add black bars to the image
-            image_new = Image.new("RGB", (self.window_height, self.window_height), (0, 0, 0))
-            # Place image at the center of this new image
-            image_new.paste(self.resized_image, (int((self.window_height - self.resized_image.size[0]) / 2), int((self.window_height - self.resized_image.size[1]) / 2)))
-            
-            # Convert the image to ImageTk format
-            imgtk = ImageTk.PhotoImage(image_new)
-            self.imagelabel.imgtk = imgtk
-            self.imagelabel.configure(image=imgtk)
+                # Resize the image to fit the window
+                if int(self.img_width*self.window_height/self.img_height) > self.window_height:
+                    self.resized_image = img.resize((self.window_height, int(self.img_height*self.window_height/self.img_width)), Image.Resampling.LANCZOS)
+                    self.resize_type = "height"
+                    self.diff_dim = (self.window_height - self.resized_image.size[1])/2 # The difference between the image height and the window height
+                else:
+                    self.resized_image = img.resize((int(self.img_width*self.window_height/self.img_height),self.window_height), Image.Resampling.LANCZOS)
+                    self.resize_type = "width"
+                    self.diff_dim = (self.window_height - self.resized_image.size[0])/2 # The difference between the image width and the window width
+                
+                # Add black bars to the image
+                image_new = Image.new("RGB", (self.window_height, self.window_height), (0, 0, 0))
+                # Place image at the center of this new image
+                image_new.paste(self.resized_image, (int((self.window_height - self.resized_image.size[0]) / 2), int((self.window_height - self.resized_image.size[1]) / 2)))
+                
+                # Convert the image to ImageTk format
+                imgtk = ImageTk.PhotoImage(image_new)
+                self.imagelabel.imgtk = imgtk
+                self.imagelabel.configure(image=imgtk)
             # Update the frame after the specified time interval
             self.imageplayer.after(self.image_update_val, self.frame_update)
         except:
