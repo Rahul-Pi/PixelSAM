@@ -113,55 +113,58 @@ class ControlFrame(ttk.Frame):
     def frame_update(self):
         # Get the height of the app window
         self.window_height = app.winfo_height()-20
-        # Try to display the image
-        try:
-            if self.cur_image_path != self.prev_image_path or len(self.cur_annotation) != self.annotation_count or self.window_height != self.prev_window_height:
-                # Read the image and convert it to RGB
-                self.OCV_image = cv2.imread(self.cur_image_path)
-                self.cv2image = cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
-                # Only when a new image is selected, the predictor image is set
-                if self.cur_image_path != self.prev_image_path:
-                    self.predictor.set_image(self.cv2image)
-                
-                # Update the previous image path, the annotation count and the window height
-                self.prev_image_path = self.cur_image_path
-                self.annotation_count = len(self.cur_annotation)
-                self.prev_window_height = self.window_height
+        # Display the image
+        if self.cur_image_path != self.prev_image_path or len(self.cur_annotation) != self.annotation_count or self.window_height != self.prev_window_height:
+            # Read the image and convert it to RGB
+            self.OCV_image = cv2.imread(self.cur_image_path)
+            self.cv2image = cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
+            # Only when a new image is selected, the predictor image is set
+            if self.cur_image_path != self.prev_image_path and self.prev_image_path != "":
+                # Show a loading message box
+                print("Loading the image. Please wait...")
+                self.predictor.set_image(self.cv2image)
+                # Close the loading message box
+                print("Image loaded")
+            
+            # Update the previous image path, the annotation count and the window height
+            self.prev_image_path = self.cur_image_path
+            self.annotation_count = len(self.cur_annotation)
+            self.prev_window_height = self.window_height
 
-                # Get the image dimensions
-                self.img_height, self.img_width, _ = self.OCV_image.shape
+            # Get the image dimensions
+            self.img_height, self.img_width, _ = self.OCV_image.shape
 
-                # Draw the annotations
-                if len(self.cur_annotation) > 0:
-                    self.cv2image = self.SAM_prediction(self.cv2image, self.cur_annotation)
-                    for i in range(len(self.cur_annotation)):
-                        self.cv2image = cv2.circle(self.cv2image, (self.cur_annotation[i][0], self.cur_annotation[i][1]), int((self.img_height+self.img_width)/200), self.cur_annotation[i][2], -1)
-                
-                img = Image.fromarray(self.cv2image)
+            # Draw the annotations
+            if len(self.cur_annotation) > 0:
+                self.cv2image = self.SAM_prediction(self.cv2image, self.cur_annotation)
+                for i in range(len(self.cur_annotation)):
+                    self.cv2image = cv2.circle(self.cv2image, (self.cur_annotation[i][0], self.cur_annotation[i][1]), int((self.img_height+self.img_width)/200), self.cur_annotation[i][2], -1)
+            
+            img = Image.fromarray(self.cv2image)
 
-                # Resize the image to fit the window
-                if int(self.img_width*self.window_height/self.img_height) > self.window_height:
-                    self.resized_image = img.resize((self.window_height, int(self.img_height*self.window_height/self.img_width)), Image.Resampling.LANCZOS)
-                    self.resize_type = "height"
-                    self.diff_dim = (self.window_height - self.resized_image.size[1])/2 # The difference between the image height and the window height
-                else:
-                    self.resized_image = img.resize((int(self.img_width*self.window_height/self.img_height),self.window_height), Image.Resampling.LANCZOS)
-                    self.resize_type = "width"
-                    self.diff_dim = (self.window_height - self.resized_image.size[0])/2 # The difference between the image width and the window width
-                
-                # Add black bars to the image
-                image_new = Image.new("RGB", (self.window_height, self.window_height), (0, 0, 0))
-                # Place image at the center of this new image
-                image_new.paste(self.resized_image, (int((self.window_height - self.resized_image.size[0]) / 2), int((self.window_height - self.resized_image.size[1]) / 2)))
-                
-                # Convert the image to ImageTk format
-                imgtk = ImageTk.PhotoImage(image_new)
-                self.imagelabel.imgtk = imgtk
-                self.imagelabel.configure(image=imgtk)
-            # Update the frame after the specified time interval
-            self.imageplayer.after(self.image_update_val, self.frame_update)
-        except:
-            self.imageplayer.after(self.image_update_val, self.frame_update)
+            # Resize the image to fit the window
+            if int(self.img_width*self.window_height/self.img_height) > self.window_height:
+                self.resized_image = img.resize((self.window_height, int(self.img_height*self.window_height/self.img_width)), Image.Resampling.LANCZOS)
+                self.resize_type = "height"
+                self.diff_dim = (self.window_height - self.resized_image.size[1])/2 # The difference between the image height and the window height
+            else:
+                self.resized_image = img.resize((int(self.img_width*self.window_height/self.img_height),self.window_height), Image.Resampling.LANCZOS)
+                self.resize_type = "width"
+                self.diff_dim = (self.window_height - self.resized_image.size[0])/2 # The difference between the image width and the window width
+            
+            # Add black bars to the image
+            image_new = Image.new("RGB", (self.window_height, self.window_height), (0, 0, 0))
+            # Place image at the center of this new image
+            image_new.paste(self.resized_image, (int((self.window_height - self.resized_image.size[0]) / 2), int((self.window_height - self.resized_image.size[1]) / 2)))
+            
+            # Convert the image to ImageTk format
+            imgtk = ImageTk.PhotoImage(image_new)
+            self.imagelabel.imgtk = imgtk
+            self.imagelabel.configure(image=imgtk)
+        # Update the frame after the specified time interval
+        self.imageplayer.after(self.image_update_val, self.frame_update)
+        # except:
+        #     self.imageplayer.after(self.image_update_val, self.frame_update)
 
     def SAM_prediction(self, image, points):
         # The points are in the format [x, y, color, label]
@@ -181,8 +184,9 @@ class ControlFrame(ttk.Frame):
         )
         # Convert the mask to an image
         h, w = masks.shape[-2:]
-        mask_color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
+        mask_color = np.array([np.random.random(3)])
         mask_image = masks.reshape(h, w, 1) * mask_color.reshape(1, 1, -1)
+        mask_image = (mask_image * 255).astype(np.uint8)
         
         # Get the edges of the mask
         img_data = np.asarray(mask_image[:, :, 0])
@@ -190,8 +194,8 @@ class ControlFrame(ttk.Frame):
         temp_edge = gy * gy + gx * gx
         gy, gx = np.where(temp_edge != 0.0)
 
-        # Overlay the mask on the image
-        image = cv2.addWeighted(image, 0.7, mask_image, 0.3, 0)
+        # Overlay the mask on the image        
+        image = cv2.addWeighted(mask_image, 0.3, image, 0.7, 0)
 
         # Plot the gx and gy on the image
         for i in range(len(gx)):
@@ -254,12 +258,7 @@ class ControlFrame(ttk.Frame):
         # device = 'cpu' or '0' or '0,1,2,3'
         s = f'SAM 🚀 torch {torch.__version__} '  # string
         cpu = device.lower() == 'cpu'
-        if cpu:
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # force torch.cuda.is_available() = False
-        elif device:  # non-cpu device requested
-            os.environ['CUDA_VISIBLE_DEVICES'] = device  # set environment variable
-            assert torch.cuda.is_available(), f'CUDA unavailable, invalid device {device} requested'  # check availability
-
+        
         cuda = not cpu and torch.cuda.is_available()
         if cuda:
             n = torch.cuda.device_count()
@@ -272,7 +271,7 @@ class ControlFrame(ttk.Frame):
         else:
             s += 'CPU\n'
 
-        print(s.encode().decode('ascii', 'ignore') if 'ascii' in s else s)  # emoji-safe
+        # print(s.encode().decode('ascii', 'ignore') if 'ascii' in s else s)  # emoji-safe
 
         return 'cuda' if cuda else 'cpu'
 
