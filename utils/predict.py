@@ -40,17 +40,21 @@ def SAM_prediction(image, points, predictor, img_height, img_width):
         kernel = np.ones((5, 5), np.uint8)
         eroded_img = cv2.erode(mask_image, kernel, iterations=2)
         mask_image = cv2.dilate(eroded_img, kernel, iterations=2)
+        contours, _ = cv2.findContours(cv2.Canny(mask_image, 30, 200), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         
-        # Get the edges of the mask
-        img_data = np.asarray(mask_image[:, :, 0])
-        gy, gx = np.gradient(img_data)
-        temp_edge = gy * gy + gx * gx
-        gy, gx = np.where(temp_edge != 0.0)
+        # Finding the best contour
+        overlay = image.copy()
+        best_contour = []
+        # Find the contours which include the any of the input_points
+        for i in range(len(input_point)):
+            for j in range(len(contours)):
+                if cv2.pointPolygonTest(contours[j],  tuple([int(input_point[i][0]), int(input_point[i][1])]), False) > 0:
+                    best_contour.append(contours[j])
+                    break
+        # Overlay the controur
+        cv2.drawContours(overlay, best_contour, -1, (0, 0, 255), thickness=cv2.FILLED)
 
         # Overlay the mask on the image        
-        image = cv2.addWeighted(mask_image, 0.3, image, 0.7, 0)
+        image = cv2.addWeighted(overlay, 0.5, image, 0.5, 0)
 
-        # Plot the gx and gy on the image
-        for i in range(len(gx)):
-            image = cv2.circle(image, (gx[i], gy[i]), int((img_height+img_width)/400), (0, 0, 255), -1)
         return image
