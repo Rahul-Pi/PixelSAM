@@ -46,10 +46,10 @@ def SAM_prediction(image, points, predictor, img_height, img_width):
         overlay = image.copy()
         best_contour = []
         # Find the contours which include the any of the input_points
-        for i in range(len(input_point)):
-            for j in range(len(contours)):
-                if cv2.pointPolygonTest(contours[j],  tuple([int(input_point[i][0]), int(input_point[i][1])]), False) > 0:
-                    best_contour.append(contours[j])
+        for i in range(len(contours)):
+            for j in range(len(input_point)):
+                if cv2.pointPolygonTest(contours[i],  tuple([int(input_point[j][0]), int(input_point[j][1])]), False) > 0:
+                    best_contour.append(contours[i])
                     break
         # Overlay the controur
         cv2.drawContours(overlay, best_contour, -1, (0, 0, 255), thickness=cv2.FILLED)
