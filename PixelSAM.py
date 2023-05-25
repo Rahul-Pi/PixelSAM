@@ -78,6 +78,7 @@ class ControlFrame(ttk.Frame):
         # Binding the keys and mouse clicks
         app.bind("<Right>", self.right_arrow_press)
         app.bind("<Left>", self.left_arrow_press)
+        app.bind("<Control-z>", self.undo_annotation)
         self.imagelabel.bind('<1>', self.left_key_press)
         self.imagelabel.bind('<3>', self.right_key_press)
 
@@ -210,6 +211,10 @@ class ControlFrame(ttk.Frame):
     def reset_annotation(self):
         self.cur_annotation = []
     
+    # When the undo button is pressed
+    def undo_annotation(self, event):
+        if len(self.cur_annotation) > 0:
+            self.cur_annotation.pop()
 
 # App class
 class App(tk.Tk):
