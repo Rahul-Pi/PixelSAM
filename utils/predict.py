@@ -14,7 +14,7 @@ def SAM_setup(model_type, model_path, device_id):
         print("Warning: Running on CPU. This will be slow.")
     return SamPredictor(sam)
 
-def SAM_prediction(image, points, predictor, img_height, img_width):
+def SAM_prediction(image, points, predictor, img_height, img_width,mask_images=[]):
         # The points are in the format [x, y, color, label]
         input_point = []
         input_label = []
@@ -32,7 +32,10 @@ def SAM_prediction(image, points, predictor, img_height, img_width):
         )
         # Convert the mask to an image
         h, w = masks.shape[-2:]
-        mask_color = np.array([1,1,1])
+        #mask_color = np.array([1,1,1])
+        #make a list of mask colors: red,blue,green,yellow,orange,purple,turquoise,white
+        mask_colors = np.array([[1,0,0],[0,0,1],[0,1,0],[1,1,0],[1,0.5,0],[0.5,0,1],[0,1,1],[1,1,1]])
+        mask_color = mask_colors[len(mask_images)]
         mask_image = masks.reshape(h, w, 1) * mask_color.reshape(1, 1, -1)
         mask_image = (mask_image * 255).astype(np.uint8)
 
@@ -49,8 +52,11 @@ def SAM_prediction(image, points, predictor, img_height, img_width):
 
         # Overlay the mask on the image        
         image = cv2.addWeighted(mask_image, 0.3, image, 0.7, 0)
+        if len(mask_images) > 0:
+             for m in mask_images:
+                 image = cv2.addWeighted(m, 0.3, image, 1, 0)
 
         # Plot the gx and gy on the image
         for i in range(len(gx)):
-            image = cv2.circle(image, (gx[i], gy[i]), int((img_height+img_width)/400), (0, 0, 255), -1)
-        return image
+            image = cv2.circle(image, (gx[i], gy[i]), int((img_height+img_width)/400), (0, 0, 255),-1)
+        return image, mask_image
