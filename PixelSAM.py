@@ -15,6 +15,8 @@ import webbrowser
         
 # Class for the main window
 class ControlFrame(ttk.Frame):
+    mask_images = []
+
     def __init__(self, container):
         super().__init__(container)
         # self['text'] = 'Options'
@@ -43,12 +45,16 @@ class ControlFrame(ttk.Frame):
         self.reset_btn = tk.Button(self.side_tab, text="Reset image", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white", command = self.reset_annotation)
         self.reset_btn.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
         
+        # Reset button
+        self.new_btn = tk.Button(self.side_tab, text="New object", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white", command = self.new_object)
+        self.new_btn.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
+        
         # The logos
         # The logo is created using the icons from https://www.flaticon.com/free-icons/schedule and https://www.flaticon.com/free-icons/professions-and-jobs
-        PixelSAM_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","PixelMe.png")).resize((100,82), Image.Resampling.LANCZOS))
-        PixelSAM_logo_label = ttk.Label(self.side_tab, image=PixelSAM_logo)
-        PixelSAM_logo_label.image = PixelSAM_logo
-        PixelSAM_logo_label.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[0,20])
+        #PixelSAM_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","PixelMe.png")).resize((100,82), Image.Resampling.LANCZOS))
+        #PixelSAM_logo_label = ttk.Label(self.side_tab, image=PixelSAM_logo)
+        #PixelSAM_logo_label.image = PixelSAM_logo
+        #PixelSAM_logo_label.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[0,20])
 
         
         self.side_tab.pack(side=tk.LEFT, anchor="s")        
@@ -131,7 +137,10 @@ class ControlFrame(ttk.Frame):
 
             # Draw the annotations
             if len(self.cur_annotation) > 0:
-                self.cv2image = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width)
+                self.cv2image, self.mask_image = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width,self.mask_images)
+                #get SAM polygons
+
+                
                 for i in range(len(self.cur_annotation)):
                     self.cv2image = cv2.circle(self.cv2image, (self.cur_annotation[i][0], self.cur_annotation[i][1]), int((self.img_height+self.img_width)/200), self.cur_annotation[i][2], -1)
             
@@ -162,6 +171,7 @@ class ControlFrame(ttk.Frame):
     
     # When the right arrow key is pressed: Display the next image
     def right_arrow_press(self, event):
+        print("Right pressed")
         # Ensure that there are more images to be displayed
         if len(self.image_list) > 0:
             if self.cur_image_index < len(self.image_list)-1:
@@ -210,6 +220,12 @@ class ControlFrame(ttk.Frame):
     # When the reset button is pressed
     def reset_annotation(self):
         self.cur_annotation = []
+        self.mask_images = []
+
+    def new_object(self):
+        self.cur_annotation = []
+        self.mask_images.append(self.mask_image)
+        print("Previous masks:",len(self.mask_images))
     
     # When the undo button is pressed
     def undo_annotation(self, event):
