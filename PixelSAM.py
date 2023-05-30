@@ -21,9 +21,21 @@ class ControlFrame(ttk.Frame):
         super().__init__(container)
         # self['text'] = 'Options'
         
+        # The left frame containing buttons
+        self.left_tab = ttk.Frame(self)
+
         # Load button
-        self.load_btn = tk.Button(self, text="Load Dataset", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white",  command=self.load_data)
-        self.load_btn.pack(side=tk.LEFT, padx=(30,30), pady=20, anchor="n")
+        self.load_btn = tk.Button(self.left_tab, text="Load Dataset", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white",  command=self.load_data)
+        self.load_btn.pack(side=tk.TOP, padx=(30,30), pady=20, anchor="n")
+
+        # Checkbox for selecting between outer edged and all points
+        # The coco based annotations have only outer edge marked
+        # To make it compatible this is being added here.
+        self.checkbox_var = tk.IntVar()
+        self.checkbox = tk.Checkbutton(self.left_tab, text="Outer edge", variable=self.checkbox_var, font='sans 10 bold', height=2, width=12)
+        self.checkbox.pack(side=tk.BOTTOM, padx=(30,30), pady=20, anchor="n")
+
+        self.left_tab.pack(side=tk.LEFT, padx=5, pady=5, anchor="n")
 
         # The frame which includes the image player
         self.imageplayer = ttk.Frame(self)
@@ -143,7 +155,7 @@ class ControlFrame(ttk.Frame):
 
             # Draw the annotations
             if len(self.cur_annotation) > 0:
-                self.cv2image, self.mask_image = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width,self.mask_images)
+                self.cv2image, self.mask_image = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width,self.mask_images, self.checkbox_var.get())
                 #get SAM polygons
 
                 
