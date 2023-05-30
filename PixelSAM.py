@@ -62,7 +62,9 @@ class ControlFrame(ttk.Frame):
         # The variables corresponding to the image player
         self.file_path = "" # Delaring path of the folder with the images to be labelled
         self.cur_annotation = [] # List of all the annotations
+        self.mask_images = [] # List of all the mask images
         self.annotation_count = None # The number of annotations
+        self.mask_count = None # The number of mask images
         self.image_update_val = 100 # The time interval between each frame update in ms
         self.cur_image_index = 0 # The index of the current image
         self.image_list = [] # The list of images to be displayed
@@ -85,6 +87,8 @@ class ControlFrame(ttk.Frame):
         app.bind("<Right>", self.right_arrow_press)
         app.bind("<Left>", self.left_arrow_press)
         app.bind("<Control-z>", self.undo_annotation)
+        app.bind("<n>", self.new_object)
+        app.bind("<Control-Shift-Z>", self.undo_object)
         self.imagelabel.bind('<1>', self.left_key_press)
         self.imagelabel.bind('<3>', self.right_key_press)
 
@@ -109,13 +113,14 @@ class ControlFrame(ttk.Frame):
         self.cur_image_path = os.path.join(self.file_path,self.image_list[0])
         self.cur_image_index = 0
         self.cur_annotation = []
+        self.mask_images = []
     
     # Update the frame
     def frame_update(self):
         # Get the height of the app window
         self.window_height = app.winfo_height()-20
         # Display the image
-        if self.cur_image_path != self.prev_image_path or len(self.cur_annotation) != self.annotation_count or self.window_height != self.prev_window_height:
+        if self.cur_image_path != self.prev_image_path or len(self.cur_annotation) != self.annotation_count or self.window_height != self.prev_window_height or self.mask_count != len(self.mask_images):
             # Read the image and convert it to RGB
             self.OCV_image = cv2.imread(self.cur_image_path)
             self.cv2image = cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
@@ -131,6 +136,7 @@ class ControlFrame(ttk.Frame):
             self.prev_image_path = self.cur_image_path
             self.annotation_count = len(self.cur_annotation)
             self.prev_window_height = self.window_height
+            self.mask_count = len(self.mask_images)
 
             # Get the image dimensions
             self.img_height, self.img_width, _ = self.OCV_image.shape
@@ -176,17 +182,20 @@ class ControlFrame(ttk.Frame):
         if len(self.image_list) > 0:
             if self.cur_image_index < len(self.image_list)-1:
                 self.cur_image_index += 1
-                self.cur_image_path = os.path.join(self.file_path,self.image_list[self.cur_image_index])
-                self.cur_annotation = []
+                self.cur_image_path = os.path.join(self.file_path,self.image_list[self.cur_image_index]) # Specify the path of the image to be displayed
+                self.cur_annotation = [] # Reset the annotation list
+                self.mask_images = [] # Reset the mask image list
     
     # When the left arrow key is pressed: Display the previous image
     def left_arrow_press(self, event):
+        print("Left pressed")
         # Ensure that there are more images to be displayed
         if len(self.image_list) > 0:
             if self.cur_image_index > 0:
                 self.cur_image_index -= 1
-                self.cur_image_path = os.path.join(self.file_path,self.image_list[self.cur_image_index])
-                self.cur_annotation = []
+                self.cur_image_path = os.path.join(self.file_path,self.image_list[self.cur_image_index]) # Specify the path of the image to be displayed
+                self.cur_annotation = [] # Reset the annotation list
+                self.mask_images = [] # Reset the mask image list
     
     # When the left mouse button is pressed: 
     def left_key_press(self, event):
@@ -222,10 +231,17 @@ class ControlFrame(ttk.Frame):
         self.cur_annotation = []
         self.mask_images = []
 
-    def new_object(self):
-        self.cur_annotation = []
-        self.mask_images.append(self.mask_image)
-        print("Previous masks:",len(self.mask_images))
+    def new_object(self, event):
+        if len(self.cur_annotation) > 0:
+            self.cur_annotation = []
+            self.mask_images.append(self.mask_image)
+            print("Previous masks:",len(self.mask_images))
+    
+    # When the undo button for the object is pressed
+    def undo_object(self, event):
+        if len(self.mask_images) > 0:
+            self.mask_images.pop()
+            print("Previous masks:",len(self.mask_images))
     
     # When the undo button is pressed
     def undo_annotation(self, event):
