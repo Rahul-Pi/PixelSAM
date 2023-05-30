@@ -62,7 +62,14 @@ def SAM_prediction(image, points, predictor, img_height, img_width, mask_array=[
 
         # Find the bounding box for the object
         if len(gx) > 0:
-            bbox_corners = [np.min(gx), np.max(gx), np.min(gy), np.max(gy)]
+            # Calculate bounding box dimensions and center coordinates in YOLO format
+            bbox_width = (np.max(gx) - np.min(gx)) / img_width
+            bbox_height = (np.max(gy) - np.min(gy)) / img_height
+            bbox_center_x = (np.max(gx) + np.min(gx)) / (2 * img_width)
+            bbox_center_y = (np.max(gy) + np.min(gy)) / (2 * img_height)
+
+            bbox_corners = [bbox_center_x, bbox_center_y, bbox_width, bbox_height]
+            bbox_corners = [round(x, 6) for x in bbox_corners]
         else:
             bbox_corners = [0, 0, 0, 0]
 
