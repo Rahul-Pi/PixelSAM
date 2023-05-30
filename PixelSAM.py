@@ -45,7 +45,7 @@ class ControlFrame(ttk.Frame):
         self.reset_btn = tk.Button(self.side_tab, text="Reset image", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white", command = self.reset_annotation)
         self.reset_btn.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
         
-        # Reset button
+        # New object button
         self.new_btn = tk.Button(self.side_tab, text="New object", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white", command = self.new_object)
         self.new_btn.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
         
@@ -231,7 +231,8 @@ class ControlFrame(ttk.Frame):
         self.cur_annotation = []
         self.mask_images = []
 
-    def new_object(self, event):
+    # When a new object is to be labelled
+    def new_object(self, event=None):
         if len(self.cur_annotation) > 0:
             self.cur_annotation = []
             self.mask_images.append(self.mask_image)
