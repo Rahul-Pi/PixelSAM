@@ -35,6 +35,9 @@ Key/button | Actions
 ← | Go to previous image
 Left mouse click | Add areas to segment
 Right mouse click | Exclude areas from segment
+n | Label new object
+Ctrl+z | Undo annotation
+Ctrl+Shift+z | Undo latest object (Note: Ensure caps lock is off)
 
 ## Command line arguments
 ```
@@ -49,7 +52,7 @@ Send a pull request
 
 ### TODO
 - [ ] Save the labels
-- [ ] Label multiple objects
-- [ ] Improve the polygon detection
+- [x] Label multiple objects
+- [x] Improve the polygon detection
 - [ ] Possibility to zoom
 - [ ] Drawing bounding box
