@@ -14,15 +14,10 @@ def SAM_setup(model_type, model_path, device_id):
         print("Warning: Running on CPU. This will be slow.")
     return SamPredictor(sam)
 
-def SAM_prediction(image, points, predictor, img_height, img_width,mask_images=[]):
+def SAM_prediction(image, points, predictor, img_height, img_width, mask_array=[]):
         # The points are in the format [x, y, color, label]
-        input_point = []
-        input_label = []
-        for i in range(len(points)):
-            input_point.append([points[i][0], points[i][1]])
-            input_label.append(points[i][3])
-        input_point = np.array(input_point)
-        input_label = np.array(input_label)
+        input_point = np.array([[p[0], p[1]] for p in points])
+        input_label = np.array([p[3] for p in points])
 
         # Estimate the mask
         masks, _, _ = predictor.predict(
@@ -34,29 +29,35 @@ def SAM_prediction(image, points, predictor, img_height, img_width,mask_images=[
         h, w = masks.shape[-2:]
         #mask_color = np.array([1,1,1])
         #make a list of mask colors: red,blue,green,yellow,orange,purple,turquoise,white
-        mask_colors = np.array([[1,0,0],[0,0,1],[0,1,0],[1,1,0],[1,0.5,0],[0.5,0,1],[0,1,1],[1,1,1]])
-        mask_color = mask_colors[len(mask_images)]
+        mask_color = np.array([1,1,1])
         mask_image = masks.reshape(h, w, 1) * mask_color.reshape(1, 1, -1)
         mask_image = (mask_image * 255).astype(np.uint8)
 
+        # The mask to be saved with different colors for different objects
+        mask_save_colors = np.array([[1,0,0],[0,0,1],[0,1,0],[1,1,0],[1,0.5,0],[0.5,0,1],[0,1,1],[1,1,1]])
+        mask_save_color = mask_save_colors[len(mask_array)]
+        mask_save_image = masks.reshape(h, w, 1) * mask_save_color.reshape(1, 1, -1)
+        mask_save_image = (mask_save_image * 255).astype(np.uint8)
+
         # Morphological operations to enhance detections
         kernel = np.ones((5, 5), np.uint8)
-        eroded_img = cv2.erode(mask_image, kernel, iterations=2)
-        mask_image = cv2.dilate(eroded_img, kernel, iterations=2)
-        
+        mask_image = cv2.morphologyEx(mask_image, cv2.MORPH_OPEN, kernel)
+
+        # Morphological operations on the mask to be saved
+        mask_save_image = cv2.morphologyEx(mask_save_image, cv2.MORPH_OPEN, kernel)
+
         # Get the edges of the mask
-        img_data = np.asarray(mask_image[:, :, 0])
-        gy, gx = np.gradient(img_data)
-        temp_edge = gy * gy + gx * gx
-        gy, gx = np.where(temp_edge != 0.0)
+        edges = cv2.Canny(mask_image[:, :, 0], 100, 200)
 
         # Overlay the mask on the image        
         image = cv2.addWeighted(mask_image, 0.3, image, 0.7, 0)
-        if len(mask_images) > 0:
-             for m in mask_images:
-                 image = cv2.addWeighted(m, 0.3, image, 1, 0)
+        if len(mask_array) > 0:
+            for m in mask_array:
+                image = cv2.addWeighted(m, 0.3, image, 1, 0)
 
-        # Plot the gx and gy on the image
+        # Plot the edges on the image
+        gy, gx = np.where(edges != 0)
         for i in range(len(gx)):
             image = cv2.circle(image, (gx[i], gy[i]), int((img_height+img_width)/400), (0, 0, 255),-1)
-        return image, mask_image
+        
+        return image, mask_save_image
