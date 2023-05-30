@@ -48,6 +48,26 @@ class ControlFrame(ttk.Frame):
         # New object button
         self.new_btn = tk.Button(self.side_tab, text="New object", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white", command = self.new_object)
         self.new_btn.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
+
+        # List of objects
+        self.scrollable_list = ttk.Frame(self.side_tab)
+        self.scrollable_label = ttk.Label(self.scrollable_list, text="Object Labels", font='sans 10 bold')
+        self.scrollable_label.pack(side=tk.TOP,expand=1, padx=[10,0], pady=[10,0], anchor="w")
+        self.yScroll = tk.Scrollbar(self.scrollable_list, orient=tk.VERTICAL)
+        self.yScroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.object_list = tk.Listbox(self.scrollable_list, height=10, width=20, background="white", foreground="#343434")
+        self.object_list.pack(side=tk.RIGHT,expand=1, padx=[10,0], pady=[0,10])
+        self.object_list.config(yscrollcommand=self.yScroll.set)
+        self.yScroll.config(command=self.object_list.yview)
+        # self.object_list.bind('<<ListboxSelect>>', self.onselect)
+        
+        # Read the data/predefined_objects.txt file and add the objects to the list
+        with open(args.class_file, 'r') as f:
+            for line in f:
+                self.object_list.insert('end', line.strip())
+            
+
+        self.scrollable_list.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
         
         # The logos
         # The logo is created using the icons from https://www.flaticon.com/free-icons/schedule and https://www.flaticon.com/free-icons/professions-and-jobs
@@ -278,6 +298,7 @@ if __name__ == "__main__":
                         Example: python PixelSAM.py') 
     parser.add_argument('--model_path', type=str, default="sam_vit_h_4b8939.pth", help='The path to the model checkpoint')
     parser.add_argument('--model_type', type=str, default="vit_h", help='The path to the model checkpoint')
+    parser.add_argument('--class_file', type=str, default=os.path.join(os.path.dirname(__file__), "data", "predefined_classes.txt"), help='The path to the class file')
 
     args = parser.parse_args()
     app = App()
