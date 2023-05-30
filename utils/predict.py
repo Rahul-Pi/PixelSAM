@@ -59,5 +59,12 @@ def SAM_prediction(image, points, predictor, img_height, img_width, mask_array=[
         gy, gx = np.where(edges != 0)
         for i in range(len(gx)):
             image = cv2.circle(image, (gx[i], gy[i]), int((img_height+img_width)/400), (0, 0, 255),-1)
+
+        # Find the bounding box for the object
+        if len(gx) > 0:
+            bbox_corners = [np.min(gx), np.max(gx), np.min(gy), np.max(gy)]
+        else:
+            bbox_corners = [0, 0, 0, 0]
+
         
-        return image, mask_save_image
+        return image, mask_save_image, bbox_corners

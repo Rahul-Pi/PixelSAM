@@ -55,7 +55,7 @@ class ControlFrame(ttk.Frame):
         self.scrollable_label.pack(side=tk.TOP,expand=1, padx=[10,0], pady=[10,0], anchor="w")
         self.yScroll = tk.Scrollbar(self.scrollable_list, orient=tk.VERTICAL)
         self.yScroll.pack(side=tk.RIGHT, fill=tk.Y)
-        self.object_list = tk.Listbox(self.scrollable_list, height=10, width=20, background="white", foreground="#343434")
+        self.object_list = tk.Listbox(self.scrollable_list, height=10, width=20, background="white", foreground="#343434", activestyle='none')
         self.object_list.pack(side=tk.RIGHT,expand=1, padx=[10,0], pady=[0,10])
         self.object_list.config(yscrollcommand=self.yScroll.set)
         self.yScroll.config(command=self.object_list.yview)
@@ -83,6 +83,7 @@ class ControlFrame(ttk.Frame):
         self.file_path = "" # Delaring path of the folder with the images to be labelled
         self.cur_annotation = [] # List of all the annotations
         self.mask_images = [] # List of all the mask images
+        self.bbox_list = [] # List of all the bounding boxes
         self.annotation_count = None # The number of annotations
         self.mask_count = None # The number of mask images
         self.image_update_val = 100 # The time interval between each frame update in ms
@@ -109,6 +110,7 @@ class ControlFrame(ttk.Frame):
         app.bind("<Control-z>", self.undo_annotation)
         app.bind("<n>", self.new_object)
         app.bind("<Control-Shift-Z>", self.undo_object)
+        app.bind("<Control-s>", self.save_annotation)
         self.imagelabel.bind('<1>', self.left_key_press)
         self.imagelabel.bind('<3>', self.right_key_press)
 
@@ -134,6 +136,7 @@ class ControlFrame(ttk.Frame):
         self.cur_image_index = 0
         self.cur_annotation = []
         self.mask_images = []
+        self.bbox_list = []
     
     # Update the frame
     def frame_update(self):
@@ -163,7 +166,7 @@ class ControlFrame(ttk.Frame):
 
             # Draw the annotations
             if len(self.cur_annotation) > 0:
-                self.cv2image, self.mask_image = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width,self.mask_images)
+                self.cv2image, self.mask_image, self.bbox_corners = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width,self.mask_images)
                 #get SAM polygons
 
                 
@@ -205,6 +208,7 @@ class ControlFrame(ttk.Frame):
                 self.cur_image_path = os.path.join(self.file_path,self.image_list[self.cur_image_index]) # Specify the path of the image to be displayed
                 self.cur_annotation = [] # Reset the annotation list
                 self.mask_images = [] # Reset the mask image list
+                self.bbox_list = [] # Reset the bounding box list
     
     # When the left arrow key is pressed: Display the previous image
     def left_arrow_press(self, event):
@@ -216,6 +220,7 @@ class ControlFrame(ttk.Frame):
                 self.cur_image_path = os.path.join(self.file_path,self.image_list[self.cur_image_index]) # Specify the path of the image to be displayed
                 self.cur_annotation = [] # Reset the annotation list
                 self.mask_images = [] # Reset the mask image list
+                self.bbox_list = [] # Reset the bounding box list
     
     # When the left mouse button is pressed: 
     def left_key_press(self, event):
@@ -250,24 +255,61 @@ class ControlFrame(ttk.Frame):
     def reset_annotation(self):
         self.cur_annotation = []
         self.mask_images = []
+        self.bbox_list = []
 
     # When a new object is to be labelled
     def new_object(self, event=None):
         if len(self.cur_annotation) > 0:
-            self.cur_annotation = []
-            self.mask_images.append(self.mask_image)
-            print("Previous masks:",len(self.mask_images))
+            if len(self.object_list.curselection())>0:
+                self.cur_annotation = []
+                self.mask_images.append(self.mask_image)
+                self.bbox_list.append([self.object_list.curselection()[0], *self.bbox_corners])
+                self.object_list.selection_clear(0, tk.END)
+                print("Previous masks:",len(self.mask_images))
+            else:
+                messagebox.showwarning("Warning","Please select an object from the list")
     
     # When the undo button for the object is pressed
     def undo_object(self, event):
         if len(self.mask_images) > 0:
             self.mask_images.pop()
+            self.bbox_list.pop()
             print("Previous masks:",len(self.mask_images))
     
     # When the undo button is pressed
     def undo_annotation(self, event):
         if len(self.cur_annotation) > 0:
             self.cur_annotation.pop()
+    
+    # When the save button is pressed
+    def save_annotation(self, event):
+        # If there are multiple objects labelled
+        if len(self.mask_images) > 0:
+            # If there is an active annotation but no label selected
+            if len(self.cur_annotation) > 0 and len(self.object_list.curselection())==0:
+                messagebox.showwarning("Warning","Please select an object from the list before saving")
+            else:
+                # If there is an active annotation
+                if len(self.cur_annotation) > 0:
+                    self.cur_annotation = []
+                    self.mask_images.append(self.mask_image)
+                    self.bbox_list.append([self.object_list.curselection()[0], *self.bbox_corners])
+                    self.object_list.selection_clear(0, tk.END)
+                # Save the bbox list to the file
+                with open(os.path.join(self.file_path,os.path.basename(self.cur_image_path).split(".")[0]+".txt"), "w") as f:
+                    for bbox in self.bbox_list:
+                        f.write(str(bbox[0])+" "+str(bbox[1])+" "+str(bbox[2])+" "+str(bbox[3])+" "+str(bbox[4])+"\n")      
+        # If there is only one object labelled
+        elif len(self.cur_annotation) > 0:
+            if len(self.object_list.curselection())>0:
+                # Save the bbox list to the file
+                with open(os.path.join(self.file_path,os.path.basename(self.cur_image_path).split(".")[0]+".txt"), "w") as f:
+                    f.write(str(self.object_list.curselection()[0])+" "+str(self.bbox_corners[0])+" "+str(self.bbox_corners[1])+" "+str(self.bbox_corners[2])+" "+str(self.bbox_corners[3])+"\n")
+            else:
+                messagebox.showwarning("Warning","Please select an object from the list before saving")
+        else:
+            messagebox.showwarning("Warning","Please label the image before saving")
+            
 
 # App class
 class App(tk.Tk):
