@@ -14,7 +14,7 @@ def SAM_setup(model_type, model_path, device_id):
         print("Warning: Running on CPU. This will be slow.")
     return SamPredictor(sam)
 
-def SAM_prediction(image, points, predictor, img_height, img_width):
+def SAM_prediction(image, points, predictor, img_height, img_width, mask_array=[]):
         # The points are in the format [x, y, color, label]
         input_point = []
         input_label = []
@@ -32,14 +32,24 @@ def SAM_prediction(image, points, predictor, img_height, img_width):
         )
         # Convert the mask to an image
         h, w = masks.shape[-2:]
+        #mask_color = np.array([1,1,1])
+        #make a list of mask colors: red,blue,green,yellow,orange,purple,turquoise,white
         mask_color = np.array([1,1,1])
         mask_image = masks.reshape(h, w, 1) * mask_color.reshape(1, 1, -1)
         mask_image = (mask_image * 255).astype(np.uint8)
 
+        # The mask to be saved with different colors for different objects
+        mask_save_colors = np.array([[1,0,0],[0,0,1],[0,1,0],[1,1,0],[1,0.5,0],[0.5,0,1],[0,1,1],[1,1,1]])
+        mask_save_color = mask_save_colors[len(mask_array)]
+        mask_save_image = masks.reshape(h, w, 1) * mask_save_color.reshape(1, 1, -1)
+        mask_save_image = (mask_save_image * 255).astype(np.uint8)
+
         # Morphological operations to enhance detections
         kernel = np.ones((5, 5), np.uint8)
-        eroded_img = cv2.erode(mask_image, kernel, iterations=2)
-        mask_image = cv2.dilate(eroded_img, kernel, iterations=2)
+        mask_image = cv2.morphologyEx(mask_image, cv2.MORPH_OPEN, kernel)
+
+        # Morphological operations on the mask to be saved
+        mask_save_image = cv2.morphologyEx(mask_save_image, cv2.MORPH_OPEN, kernel)
         contours, _ = cv2.findContours(cv2.Canny(mask_image, 30, 200), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         
         # Finding the best contour
@@ -57,4 +67,8 @@ def SAM_prediction(image, points, predictor, img_height, img_width):
         # Overlay the mask on the image        
         image = cv2.addWeighted(overlay, 0.5, image, 0.5, 0)
 
-        return image
+        if len(mask_array) > 0:
+            for m in mask_array:
+                image = cv2.addWeighted(m, 0.3, image, 1, 0)
+
+        return image, mask_save_image
