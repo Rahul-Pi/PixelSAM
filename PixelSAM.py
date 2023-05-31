@@ -214,11 +214,11 @@ class ControlFrame(ttk.Frame):
         # Append the button press location to the annotation list
         if self.resize_type == "height":
             # Ensure that the click is within the image and not in the border
-            if event.y > (self.window_height - self.resized_image.size[1])/2 or event.y < self.window_height-(self.window_height - self.resized_image.size[1])/2:
+            if event.y > (self.window_height - self.resized_image.size[1])/2 and event.y < self.window_height-(self.window_height - self.resized_image.size[1])/2:
                 self.cur_annotation.append([int(event.x*self.img_width/self.window_height), int((event.y-self.diff_dim)*self.img_height/self.resized_image.size[1]),(0, 255, 0), 1])
         else:
             # Ensure that the click is within the image and not in the border
-            if event.x > (self.window_height - self.resized_image.size[0])/2 or event.x < self.window_height-(self.window_height - self.resized_image.size[0])/2:
+            if event.x > (self.window_height - self.resized_image.size[0])/2 and event.x < self.window_height-(self.window_height - self.resized_image.size[0])/2:
                 self.cur_annotation.append([int((event.x-self.diff_dim)*self.img_width/self.resized_image.size[0]), int(event.y*self.img_height/self.window_height),(0, 255, 0), 1])
     
     # When the left mouse button is pressed: 
