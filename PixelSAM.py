@@ -21,9 +21,27 @@ class ControlFrame(ttk.Frame):
         super().__init__(container)
         # self['text'] = 'Options'
         
+        # The left frame containing buttons
+        self.left_tab = ttk.Frame(self)
+
         # Load button
-        self.load_btn = tk.Button(self, text="Load Dataset", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white",  command=self.load_data)
-        self.load_btn.pack(side=tk.LEFT, padx=(30,30), pady=20, anchor="n")
+        self.load_btn = tk.Button(self.left_tab, text="Load Dataset", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white",  command=self.load_data)
+        self.load_btn.pack(side=tk.TOP, padx=(30,30), pady=20, anchor="n")
+
+        self.boundingbox_var = tk.IntVar()
+        self.boundingbox_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","bbox.png")).resize((40,40), Image.Resampling.LANCZOS))
+        self.boundingbox_selector = tk.Checkbutton(self.left_tab, image=self.boundingbox_logo, variable=self.boundingbox_var, font='sans 10 bold', indicatoron=False, text="Show Bbox", width=100, height = 60, compound="top", selectcolor="#34b233", command=self.statechange_callback)
+        self.boundingbox_selector.pack(side=tk.BOTTOM, padx=(30,30), pady=20, anchor="n")
+
+        # Checkbox for selecting between outer edged and all points
+        # The coco based annotations have only outer edge marked
+        # To make it compatible this is being added here.
+        self.checkbox_var = tk.IntVar()
+        self.polygon_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","polygon.png")).resize((40,40), Image.Resampling.LANCZOS))
+        self.checkbox = tk.Checkbutton(self.left_tab, image=self.polygon_logo, variable=self.checkbox_var, font='sans 10 bold', indicatoron=False, text="Outer Edge", width=100, height = 60, compound="top", selectcolor="#34b233", command=self.statechange_callback)
+        self.checkbox.pack(side=tk.BOTTOM, padx=(30,30), pady=20, anchor="n")
+
+        self.left_tab.pack(side=tk.LEFT, padx=5, pady=5, anchor="n")
 
         # The frame which includes the image player
         self.imageplayer = ttk.Frame(self)
@@ -90,6 +108,7 @@ class ControlFrame(ttk.Frame):
         self.cur_image_index = 0 # The index of the current image
         self.image_list = [] # The list of images to be displayed
         self.window_height = 0 # The height of the app window
+        self.state_changed = False # The state of the bbox and outer edge buttons
 
         # Path to the intro image
         self.cur_image_path = os.path.join(".","assets","intro.png")
@@ -143,7 +162,8 @@ class ControlFrame(ttk.Frame):
         # Get the height of the app window
         self.window_height = app.winfo_height()-20
         # Display the image
-        if self.cur_image_path != self.prev_image_path or len(self.cur_annotation) != self.annotation_count or self.window_height != self.prev_window_height or self.mask_count != len(self.mask_images):
+        # If a new image is loaded or there is a new annotation or the window is resized, or there is a change in the state of the buttons, then update the image
+        if self.cur_image_path != self.prev_image_path or len(self.cur_annotation) != self.annotation_count or self.window_height != self.prev_window_height or self.state_changed:
             # Read the image and convert it to RGB
             self.OCV_image = cv2.imread(self.cur_image_path)
             self.cv2image = cv2.cvtColor(self.OCV_image, cv2.COLOR_BGR2RGB)
@@ -160,13 +180,14 @@ class ControlFrame(ttk.Frame):
             self.annotation_count = len(self.cur_annotation)
             self.prev_window_height = self.window_height
             self.mask_count = len(self.mask_images)
+            self.state_changed = False
 
             # Get the image dimensions
             self.img_height, self.img_width, _ = self.OCV_image.shape
 
             # Draw the annotations
             if len(self.cur_annotation) > 0:
-                self.cv2image, self.mask_image, self.bbox_corners = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width,self.mask_images)
+                self.cv2image, self.mask_image, self.bbox_corners = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width, self.mask_images, self.checkbox_var.get(), self.boundingbox_var.get())
                 #get SAM polygons
 
                 
@@ -309,6 +330,10 @@ class ControlFrame(ttk.Frame):
                 messagebox.showwarning("Warning","Please select an object from the list before saving")
         else:
             messagebox.showwarning("Warning","Please label the image before saving")
+    
+    # When there is a state change
+    def statechange_callback(self, event=None):
+        self.state_changed = True
             
 
 # App class
