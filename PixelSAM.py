@@ -29,7 +29,7 @@ class ControlFrame(ttk.Frame):
         self.load_btn.pack(side=tk.TOP, padx=(30,30), pady=20, anchor="n")
 
         self.boundingbox_var = tk.IntVar()
-        self.boundingbox_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","bbox.png")).resize((40,40), Image.Resampling.LANCZOS))
+        self.boundingbox_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","bbox.png")).resize((40,40), Image.Resampling.LANCZOS)) # https://www.flaticon.com/free-icon/square_7559227
         self.boundingbox_selector = tk.Checkbutton(self.left_tab, image=self.boundingbox_logo, variable=self.boundingbox_var, font='sans 10 bold', indicatoron=False, text="Show Bbox", width=100, height = 60, compound="top", selectcolor="#34b233", command=self.statechange_callback)
         self.boundingbox_selector.pack(side=tk.BOTTOM, padx=(30,30), pady=20, anchor="n")
 
@@ -37,7 +37,7 @@ class ControlFrame(ttk.Frame):
         # The coco based annotations have only outer edge marked
         # To make it compatible this is being added here.
         self.checkbox_var = tk.IntVar()
-        self.polygon_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","polygon.png")).resize((40,40), Image.Resampling.LANCZOS))
+        self.polygon_logo = ImageTk.PhotoImage(Image.open(os.path.join(".","assets","polygon.png")).resize((40,40), Image.Resampling.LANCZOS)) # https://www.flaticon.com/free-icon/polygon_9726538
         self.checkbox = tk.Checkbutton(self.left_tab, image=self.polygon_logo, variable=self.checkbox_var, font='sans 10 bold', indicatoron=False, text="Outer Edge", width=100, height = 60, compound="top", selectcolor="#34b233", command=self.statechange_callback)
         self.checkbox.pack(side=tk.BOTTOM, padx=(30,30), pady=20, anchor="n")
 
