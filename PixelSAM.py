@@ -48,6 +48,26 @@ class ControlFrame(ttk.Frame):
         # New object button
         self.new_btn = tk.Button(self.side_tab, text="New object", font='sans 10 bold', height=2, width=12, background="#343434", foreground="white", command = self.new_object)
         self.new_btn.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
+
+        # List of objects
+        self.scrollable_list = ttk.Frame(self.side_tab)
+        self.scrollable_label = ttk.Label(self.scrollable_list, text="Object Labels", font='sans 10 bold')
+        self.scrollable_label.pack(side=tk.TOP,expand=1, padx=[10,0], pady=[10,0], anchor="w")
+        self.yScroll = tk.Scrollbar(self.scrollable_list, orient=tk.VERTICAL)
+        self.yScroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.object_list = tk.Listbox(self.scrollable_list, height=10, width=20, background="white", foreground="#343434", activestyle='none')
+        self.object_list.pack(side=tk.RIGHT,expand=1, padx=[10,0], pady=[0,10])
+        self.object_list.config(yscrollcommand=self.yScroll.set)
+        self.yScroll.config(command=self.object_list.yview)
+        # self.object_list.bind('<<ListboxSelect>>', self.onselect)
+        
+        # Read the data/predefined_objects.txt file and add the objects to the list
+        with open(args.class_file, 'r') as f:
+            for line in f:
+                self.object_list.insert('end', line.strip())
+            
+
+        self.scrollable_list.pack(side=tk.BOTTOM,expand=1, padx=[10,0], pady=[10,10])
         
         # The logos
         # The logo is created using the icons from https://www.flaticon.com/free-icons/schedule and https://www.flaticon.com/free-icons/professions-and-jobs
@@ -63,6 +83,7 @@ class ControlFrame(ttk.Frame):
         self.file_path = "" # Delaring path of the folder with the images to be labelled
         self.cur_annotation = [] # List of all the annotations
         self.mask_images = [] # List of all the mask images
+        self.bbox_list = [] # List of all the bounding boxes
         self.annotation_count = None # The number of annotations
         self.mask_count = None # The number of mask images
         self.image_update_val = 100 # The time interval between each frame update in ms
@@ -89,6 +110,7 @@ class ControlFrame(ttk.Frame):
         app.bind("<Control-z>", self.undo_annotation)
         app.bind("<n>", self.new_object)
         app.bind("<Control-Shift-Z>", self.undo_object)
+        app.bind("<Control-s>", self.save_annotation)
         self.imagelabel.bind('<1>', self.left_key_press)
         self.imagelabel.bind('<3>', self.right_key_press)
 
@@ -114,6 +136,7 @@ class ControlFrame(ttk.Frame):
         self.cur_image_index = 0
         self.cur_annotation = []
         self.mask_images = []
+        self.bbox_list = []
     
     # Update the frame
     def frame_update(self):
@@ -143,7 +166,7 @@ class ControlFrame(ttk.Frame):
 
             # Draw the annotations
             if len(self.cur_annotation) > 0:
-                self.cv2image, self.mask_image = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width,self.mask_images)
+                self.cv2image, self.mask_image, self.bbox_corners = SAM_prediction(self.cv2image, self.cur_annotation, self.predictor, self.img_height, self.img_width,self.mask_images)
                 #get SAM polygons
 
                 
@@ -185,6 +208,7 @@ class ControlFrame(ttk.Frame):
                 self.cur_image_path = os.path.join(self.file_path,self.image_list[self.cur_image_index]) # Specify the path of the image to be displayed
                 self.cur_annotation = [] # Reset the annotation list
                 self.mask_images = [] # Reset the mask image list
+                self.bbox_list = [] # Reset the bounding box list
     
     # When the left arrow key is pressed: Display the previous image
     def left_arrow_press(self, event):
@@ -196,17 +220,18 @@ class ControlFrame(ttk.Frame):
                 self.cur_image_path = os.path.join(self.file_path,self.image_list[self.cur_image_index]) # Specify the path of the image to be displayed
                 self.cur_annotation = [] # Reset the annotation list
                 self.mask_images = [] # Reset the mask image list
+                self.bbox_list = [] # Reset the bounding box list
     
     # When the left mouse button is pressed: 
     def left_key_press(self, event):
         # Append the button press location to the annotation list
         if self.resize_type == "height":
             # Ensure that the click is within the image and not in the border
-            if event.y > (self.window_height - self.resized_image.size[1])/2 or event.y < self.window_height-(self.window_height - self.resized_image.size[1])/2:
+            if event.y > (self.window_height - self.resized_image.size[1])/2 and event.y < self.window_height-(self.window_height - self.resized_image.size[1])/2:
                 self.cur_annotation.append([int(event.x*self.img_width/self.window_height), int((event.y-self.diff_dim)*self.img_height/self.resized_image.size[1]),(0, 255, 0), 1])
         else:
             # Ensure that the click is within the image and not in the border
-            if event.x > (self.window_height - self.resized_image.size[0])/2 or event.x < self.window_height-(self.window_height - self.resized_image.size[0])/2:
+            if event.x > (self.window_height - self.resized_image.size[0])/2 and event.x < self.window_height-(self.window_height - self.resized_image.size[0])/2:
                 self.cur_annotation.append([int((event.x-self.diff_dim)*self.img_width/self.resized_image.size[0]), int(event.y*self.img_height/self.window_height),(0, 255, 0), 1])
     
     # When the left mouse button is pressed: 
@@ -230,24 +255,61 @@ class ControlFrame(ttk.Frame):
     def reset_annotation(self):
         self.cur_annotation = []
         self.mask_images = []
+        self.bbox_list = []
 
     # When a new object is to be labelled
     def new_object(self, event=None):
         if len(self.cur_annotation) > 0:
-            self.cur_annotation = []
-            self.mask_images.append(self.mask_image)
-            print("Previous masks:",len(self.mask_images))
+            if len(self.object_list.curselection())>0:
+                self.cur_annotation = []
+                self.mask_images.append(self.mask_image)
+                self.bbox_list.append([self.object_list.curselection()[0], *self.bbox_corners])
+                self.object_list.selection_clear(0, tk.END)
+                print("Previous masks:",len(self.mask_images))
+            else:
+                messagebox.showwarning("Warning","Please select an object from the list")
     
     # When the undo button for the object is pressed
     def undo_object(self, event):
         if len(self.mask_images) > 0:
             self.mask_images.pop()
+            self.bbox_list.pop()
             print("Previous masks:",len(self.mask_images))
     
     # When the undo button is pressed
     def undo_annotation(self, event):
         if len(self.cur_annotation) > 0:
             self.cur_annotation.pop()
+    
+    # When the save button is pressed
+    def save_annotation(self, event):
+        # If there are multiple objects labelled
+        if len(self.mask_images) > 0:
+            # If there is an active annotation but no label selected
+            if len(self.cur_annotation) > 0 and len(self.object_list.curselection())==0:
+                messagebox.showwarning("Warning","Please select an object from the list before saving")
+            else:
+                # If there is an active annotation
+                if len(self.cur_annotation) > 0:
+                    self.cur_annotation = []
+                    self.mask_images.append(self.mask_image)
+                    self.bbox_list.append([self.object_list.curselection()[0], *self.bbox_corners])
+                    self.object_list.selection_clear(0, tk.END)
+                # Save the bbox list to the file
+                with open(os.path.join(self.file_path,os.path.basename(self.cur_image_path).split(".")[0]+".txt"), "w") as f:
+                    for bbox in self.bbox_list:
+                        f.write(str(bbox[0])+" "+str(bbox[1])+" "+str(bbox[2])+" "+str(bbox[3])+" "+str(bbox[4])+"\n")      
+        # If there is only one object labelled
+        elif len(self.cur_annotation) > 0:
+            if len(self.object_list.curselection())>0:
+                # Save the bbox list to the file
+                with open(os.path.join(self.file_path,os.path.basename(self.cur_image_path).split(".")[0]+".txt"), "w") as f:
+                    f.write(str(self.object_list.curselection()[0])+" "+str(self.bbox_corners[0])+" "+str(self.bbox_corners[1])+" "+str(self.bbox_corners[2])+" "+str(self.bbox_corners[3])+"\n")
+            else:
+                messagebox.showwarning("Warning","Please select an object from the list before saving")
+        else:
+            messagebox.showwarning("Warning","Please label the image before saving")
+            
 
 # App class
 class App(tk.Tk):
@@ -278,6 +340,7 @@ if __name__ == "__main__":
                         Example: python PixelSAM.py') 
     parser.add_argument('--model_path', type=str, default="sam_vit_h_4b8939.pth", help='The path to the model checkpoint')
     parser.add_argument('--model_type', type=str, default="vit_h", help='The path to the model checkpoint')
+    parser.add_argument('--class_file', type=str, default=os.path.join(os.path.dirname(__file__), "data", "predefined_classes.txt"), help='The path to the class file')
 
     args = parser.parse_args()
     app = App()

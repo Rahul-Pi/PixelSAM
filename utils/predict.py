@@ -59,5 +59,19 @@ def SAM_prediction(image, points, predictor, img_height, img_width, mask_array=[
         gy, gx = np.where(edges != 0)
         for i in range(len(gx)):
             image = cv2.circle(image, (gx[i], gy[i]), int((img_height+img_width)/400), (0, 0, 255),-1)
+
+        # Find the bounding box for the object
+        if len(gx) > 0:
+            # Calculate bounding box dimensions and center coordinates in YOLO format
+            bbox_width = (np.max(gx) - np.min(gx)) / img_width
+            bbox_height = (np.max(gy) - np.min(gy)) / img_height
+            bbox_center_x = (np.max(gx) + np.min(gx)) / (2 * img_width)
+            bbox_center_y = (np.max(gy) + np.min(gy)) / (2 * img_height)
+
+            bbox_corners = [bbox_center_x, bbox_center_y, bbox_width, bbox_height]
+            bbox_corners = [round(x, 6) for x in bbox_corners]
+        else:
+            bbox_corners = [0, 0, 0, 0]
+
         
-        return image, mask_save_image
+        return image, mask_save_image, bbox_corners

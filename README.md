@@ -36,6 +36,7 @@ Key/button | Actions
 Left mouse click | Add areas to segment
 Right mouse click | Exclude areas from segment
 n | Label new object
+Ctrl+s | Save annotation
 Ctrl+z | Undo annotation
 Ctrl+Shift+z | Undo latest object (Note: Ensure caps lock is off)
 
@@ -51,8 +52,10 @@ Ctrl+Shift+z | Undo latest object (Note: Ensure caps lock is off)
 Send a pull request
 
 ### TODO
-- [ ] Save the labels
+- [x] Save the labels
+- [ ] Save the segmentation
 - [x] Label multiple objects
 - [x] Improve the polygon detection
 - [ ] Possibility to zoom
 - [ ] Drawing bounding box
+- [ ] Pre-process batch
