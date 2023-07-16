@@ -284,7 +284,8 @@ class ControlFrame(ttk.Frame):
             if len(self.object_list.curselection())>0:
                 self.cur_annotation = []
                 self.mask_images.append(self.mask_image)
-                self.bbox_list.append([self.object_list.curselection()[0], *self.bbox_corners])
+                if len(self.bbox_corners) > 0:
+                    self.bbox_list.append([self.object_list.curselection()[0], *self.bbox_corners])
                 self.object_list.selection_clear(0, tk.END)
                 print("Previous masks:",len(self.mask_images))
             else:
@@ -314,14 +315,15 @@ class ControlFrame(ttk.Frame):
                 if len(self.cur_annotation) > 0:
                     self.cur_annotation = []
                     self.mask_images.append(self.mask_image)
-                    self.bbox_list.append([self.object_list.curselection()[0], *self.bbox_corners])
+                    if len(self.bbox_corners) > 0:
+                        self.bbox_list.append([self.object_list.curselection()[0], *self.bbox_corners])
                     self.object_list.selection_clear(0, tk.END)
                 # Save the bbox list to the file
                 with open(os.path.join(self.file_path,os.path.basename(self.cur_image_path).split(".")[0]+".txt"), "w") as f:
                     for bbox in self.bbox_list:
                         f.write(str(bbox[0])+" "+str(bbox[1])+" "+str(bbox[2])+" "+str(bbox[3])+" "+str(bbox[4])+"\n")      
         # If there is only one object labelled
-        elif len(self.cur_annotation) > 0:
+        elif len(self.cur_annotation) > 0 and len(self.bbox_corners)>0:
             if len(self.object_list.curselection())>0:
                 # Save the bbox list to the file
                 with open(os.path.join(self.file_path,os.path.basename(self.cur_image_path).split(".")[0]+".txt"), "w") as f:

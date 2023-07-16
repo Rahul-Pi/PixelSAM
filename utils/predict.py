@@ -5,6 +5,28 @@ import cv2
 import numpy as np
 from segment_anything import sam_model_registry, SamPredictor
 
+# BBox to Yolo format
+def bbox_to_yolo(bbox, image_width, image_height):
+    # Get the center of the bbox
+    center_x = (bbox[0] + bbox[2]) / 2
+    center_y = (bbox[1] + bbox[3]) / 2
+
+    # Get the width and height of the bbox
+    width = bbox[2] - bbox[0]
+    height = bbox[3] - bbox[1]
+
+    # Convert the bbox to Yolo format
+    yolo_bbox = [
+        center_x / image_width,
+        center_y / image_height,
+        width / image_width,
+        height / image_height,
+    ]
+
+    # Round the values to 6 decimal places
+    yolo_bbox = [round(value, 6) for value in yolo_bbox]
+
+    return yolo_bbox
 
 # Function to filter the contour by area
 def filter_contour_by_area(contour, min_area, max_area):
@@ -150,18 +172,11 @@ def SAM_prediction(image, points, predictor, img_height, img_width, mask_array=[
             for i in range(len(gx)):
                 image = cv2.circle(image, (gx[i], gy[i]), int((img_height+img_width)/400), (0, 0, 255),-1)
 
+        bbox_corners = []
         # Find the bounding box for the object
         if len(gx) > 0:
             # Calculate bounding box dimensions and center coordinates in YOLO format
-            bbox_width = (np.max(gx) - np.min(gx)) / img_width
-            bbox_height = (np.max(gy) - np.min(gy)) / img_height
-            bbox_center_x = (np.max(gx) + np.min(gx)) / (2 * img_width)
-            bbox_center_y = (np.max(gy) + np.min(gy)) / (2 * img_height)
-
-            bbox_corners = [bbox_center_x, bbox_center_y, bbox_width, bbox_height]
-            bbox_corners = [round(x, 6) for x in bbox_corners]
-        else:
-            bbox_corners = [0, 0, 0, 0]
+            bbox_corners = bbox_to_yolo([np.min(gx), np.min(gy), np.max(gx), np.max(gy)], img_width, img_height)
 
         # If bounding_box is 1, plot the bounding box for the object
         if bounding_box==1:
