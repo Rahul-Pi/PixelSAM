@@ -5,41 +5,60 @@ import cv2
 import numpy as np
 from segment_anything import sam_model_registry, SamPredictor
 
+
+# Function to filter the contour by area
+def filter_contour_by_area(contour, min_area, max_area):
+    area = cv2.contourArea(contour)
+    if area < min_area or area > max_area:
+        return False
+    return True
+
+# Function to approximate the polygon
+def approx_contour(contour, percentage, epsilon_step=0.005):
+    if percentage < 0 or percentage >= 1:
+        raise ValueError("Percentage must be in the range [0, 1).")
+    
+    target_points = max(int(contour.shape[0] * (1 - percentage)), 3)
+
+    epsilon = 0
+    while True:
+        epsilon += epsilon_step
+        approximated_contour = cv2.approxPolyDP(contour, epsilon, closed=True)
+        if approximated_contour.shape[0] <= target_points:
+            break
+
+    return approximated_contour
+
 # Function to convert the mask to a polygon
-def mask_to_polygon(mask_image, input_point):
+def mask_to_polygon(mask_image, approximation_percentage = 0.75):
+    
     # Add padding to the mask_image to capture the outer edge
     padded_mask_image = cv2.copyMakeBorder(mask_image, 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=0)
 
     # Get the contours of the mask
     contours, _ = cv2.findContours(cv2.Canny(padded_mask_image, 100, 200), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS)
 
-    # Set the best contour and polygon to be empty
-    best_contour = []
-    best_polygon = []
+    # Remove the contours which have less than 10 points
+    contours = [contour for contour in contours if contour.shape[0] >= 10]
 
-    # Find the contours which include the any of the input_points
-    for contour in contours:
+    # Remove the previously added padding from the contours
+    contours = [np.subtract(contour,(1,1)) for contour in contours]
 
-        # Check if the number of points in the contour is less than 10: Skip the contour
-        if len(contour) < 10:
-            continue
+    # Filter the contours by area
+    height, width = mask_image.shape[-2:]
+    contours = [contour for contour in contours if filter_contour_by_area(
+            contour=contour,
+            min_area=0.005*height*width,
+            max_area=1*height*width)]
 
-        # Subtract the padding from the contour
-        contour = np.subtract(contour,(1,1))
+    # Reduce the complexity of contours
+    best_contour = [approx_contour(contour=contour, percentage=0.75) for contour in contours]
+    
+    # Ensure that the contour is closed
+    best_contour = [np.vstack((contour, contour[0][np.newaxis, :])) for contour in best_contour if not np.array_equal(contour[0], contour[-1])]
 
-        # Approximate the contour to a polygon
-        epsilon = 0.001 * cv2.arcLength(contour,True)
-        approx_contour = cv2.approxPolyDP(contour, epsilon, True)
-
-        # Check if it is a closed contour
-        if not np.array_equal(approx_contour[0], approx_contour[-1]):
-            approx_contour = np.vstack((approx_contour, approx_contour[0][np.newaxis, :]))
-        
-        best_contour.append(approx_contour)
-
-        # To avoid the polygon having negative coordinates
-        polygon = [0 if i < 0 else i for i in approx_contour.flatten().tolist()]
-        best_polygon.append(polygon)
+    # Convert the contours to polygons
+    best_polygon = [contour.flatten().tolist() for contour in best_contour]
     
     return best_contour, best_polygon
 
@@ -99,7 +118,7 @@ def SAM_prediction(image, points, predictor, img_height, img_width, mask_array=[
             overlay = image.copy()
 
             # Get the best contours in the mask and its corresponding polygon
-            best_contour, best_polygon = mask_to_polygon(mask_image, input_point)
+            best_contour, best_polygon = mask_to_polygon(mask_image)
 
             # Overlay the controur
             cv2.drawContours(overlay, best_contour, -1, (0, 0, 255), thickness=cv2.FILLED)
@@ -118,7 +137,7 @@ def SAM_prediction(image, points, predictor, img_height, img_width, mask_array=[
             if len(best_polygon) > 0:
                 gx = np.array(np.hstack(best_polygon)).reshape(-1, 2)[:, 0]
                 gy = np.array(np.hstack(best_polygon)).reshape(-1, 2)[:, 1]
-        
+
         else:
             # Overlay the mask on the image        
             image = cv2.addWeighted(mask_image, 0.3, image, 0.7, 0)
